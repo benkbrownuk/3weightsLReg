@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Logistic Regression Solver</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: #ffa500;
+      display: flex;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      display: flex;
+      width: 100%;
+      padding: 20px;
+    }
+    .left, .right {
+      flex: 1;
+      padding: 20px;
+    }
+    .left {
+      border-right: 2px solid #ffa500;
+    }
+    textarea, input, button {
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      background: #2e2e2e;
+      color: #ffa500;
+      border: 1px solid #ffa500;
+      border-radius: 5px;
+    }
+    button {
+      cursor: pointer;
+    }
+    #results {
+      white-space: pre-wrap;
+      background: #2e2e2e;
+      padding: 15px;
+      border-radius: 5px;
+      border: 1px solid #ffa500;
+      margin-top: 10px;
+    }
+    .copy-btn {
+      margin-top: 10px;
+      padding: 8px;
+      background: #ffa500;
+      color: #1e1e1e;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left">
+      <h2>Logistic Regression Solver</h2>
+      <label>Upload CSV:</label>
+      <input type="file" id="csvFile" accept=".csv">
+
+      <label>Or Paste Data:</label>
+      <textarea id="csvText" rows="10" placeholder="Paste CSV data here..."></textarea>
+
+      <label>Epochs:</label>
+      <input type="number" id="epochs" value="1000">
+
+      <label>Learning Rate:</label>
+      <input type="number" id="lr" value="0.01" step="0.001">
+
+      <button onclick="runLogisticRegression()">Run Logistic Regression</button>
+    </div>
+    <div class="right">
+      <h2>Results</h2>
+      <div id="results"></div>
+      <button class="copy-btn" onclick="copyResults()">Copy Parameters</button>
+    </div>
+  </div>
+
+  <script>
+    function sigmoid(z) {
+      return 1 / (1 + Math.exp(-z));
+    }
+
+    function parseCSV(content) {
+      return Papa.parse(content.trim(), { header: true, dynamicTyping: true }).data;
+    }
+
+    function runLogisticRegression() {
+      let data = [];
+      if (document.getElementById("csvFile").files.length > 0) {
+        const file = document.getElementById("csvFile").files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          data = parseCSV(e.target.result);
+          trainModel(data);
+        };
+        reader.readAsText(file);
+      } else {
+        const text = document.getElementById("csvText").value;
+        data = parseCSV(text);
+        trainModel(data);
+      }
+    }
+
+    function trainModel(data) {
+      if (!data || data.length === 0) {
+        alert("No data provided!");
+        return;
+      }
+
+      const epochs = parseInt(document.getElementById("epochs").value);
+      const lr = parseFloat(document.getElementById("lr").value);
+
+      // Extract features and labels dynamically
+      const featureNames = Object.keys(data[0]).filter(k => k !== "y");
+      const X = data.map(row => featureNames.map(f => parseFloat(row[f])));
+      const y = data.map(row => parseFloat(row.y));
+
+      const m = X.length; // number of samples
+      const n = featureNames.length; // number of features
+
+      let weights = Array(n + 1).fill(0); // w0 (bias) + n weights
+
+      for (let epoch = 0; epoch < epochs; epoch++) {
+        let gradients = Array(n + 1).fill(0);
+
+        for (let i = 0; i < m; i++) {
+          let z = weights[0]; // bias
+          for (let j = 0; j < n; j++) {
+            z += weights[j + 1] * X[i][j];
+          }
+          let h = sigmoid(z);
+          let error = h - y[i];
+          gradients[0] += error;
+          for (let j = 0; j < n; j++) {
+            gradients[j + 1] += error * X[i][j];
+          }
+        }
+
+        // Update weights
+        for (let j = 0; j < weights.length; j++) {
+          weights[j] -= (lr / m) * gradients[j];
+        }
+      }
+
+      // Show results
+      let results = "Trained Parameters:\n";
+      results += `w0 (bias) = ${weights[0].toFixed(6)}\n`;
+      for (let j = 1; j < weights.length; j++) {
+        results += `w${j} = ${weights[j].toFixed(6)}\n`;
+      }
+      document.getElementById("results").innerText = results;
+    }
+
+    function copyResults() {
+      const text = document.getElementById("results").innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Parameters copied to clipboard!");
+      });
+    }
+  </script>
+</body>
+</html>
